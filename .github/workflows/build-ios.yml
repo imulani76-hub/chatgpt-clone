@@ -30,10 +30,15 @@ jobs:
           cd ios
           pod install
 
+      - name: List Xcode schemes (debug)
+        run: |
+          ls ios
+          xcodebuild -workspace ios/*.xcworkspace -list
+
       - name: Build unsigned IPA
         run: |
-          xcodebuild -workspace ios/*.xcworkspace \
-            -scheme $(ls ios | grep .xcodeproj | sed 's/.xcodeproj//') \
+          xcodebuild -workspace ios/<YOUR_WORKSPACE_NAME>.xcworkspace \
+            -scheme <YOUR_SCHEME_NAME> \
             -sdk iphoneos \
             -configuration Release \
             -allowProvisioningUpdates \
@@ -45,20 +50,3 @@ jobs:
 
           echo '<?xml version="1.0" encoding="UTF-8"?> 
           <plist version="1.0">
-          <dict>
-            <key>method</key><string>ad-hoc</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>compileBitcode</key><false/>
-          </dict>
-          </plist>' > exportOptions.plist
-
-          xcodebuild -exportArchive \
-            -archivePath $PWD/build/app.xcarchive \
-            -exportOptionsPlist exportOptions.plist \
-            -exportPath $PWD/build/ipa
-
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-unsigned
-          path: build/ipa/*.ipa
