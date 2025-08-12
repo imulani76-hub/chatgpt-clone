@@ -1,0 +1,61 @@
+name: Build iOS Unsigned IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Expo CLI
+        run: npm install -g expo-cli
+
+      - name: Prebuild iOS project
+        run: npx expo prebuild --platform ios
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build unsigned IPA
+        run: |
+          xcodebuild -workspace ios/*.xcworkspace \
+            -scheme $(ls ios | grep .xcodeproj | sed 's/.xcodeproj//') \
+            -sdk iphoneos \
+            -configuration Release \
+            -allowProvisioningUpdates \
+            clean archive \
+            -archivePath $PWD/build/app.xcarchive \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+
+          mkdir -p build/ipa
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/app.xcarchive \
+            -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?> 
+<plist version="1.0">
+<dict>
+  <key>method</key><string>ad-hoc</string>
+  <key>signingStyle</key><string>manual</string>
+  <key>compileBitcode</key><false/>
+</dict>
+</plist>') \
+            -exportPath $PWD/build/ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-unsigned
+          path: build/ipa/*.ipa
